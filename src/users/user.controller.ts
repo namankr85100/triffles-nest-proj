@@ -2,8 +2,10 @@ import {
   Controller,
   Post,
   Body,
-  Get
+  Get,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 
 import { UserService } from './user.service';
 
@@ -12,20 +14,45 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  addUser(
+  async addUser(
     @Body('email') email: string,
     @Body('password') password: string,
+    @Body('isAdmin') isAdmin: boolean,
   ) {
-    const createdUser = this.userService.insertUser(
+    const createdUser = await this.userService.insertUser(
      email,
-     password
+     password,
+     isAdmin
     );
     return createdUser;
   }
 
   @Get()
-  getAllUsers() {
-    return this.userService.getAllUsers();
+  async getAllUsers() {
+    return await this.userService.getAllUsers();
+  }
+
+  @Post('login')
+  async signIn(
+    @Body('email') email: string,
+    @Body('password') password: string,
+    @Res({passthrough: true}) response: Response
+  ) {
+    const user = await this.userService.login(email, password);
+    if (!user) {
+      response.status(404);
+      return {
+        message: `User not found`,
+        statusCode: 404,
+      };
+    }
+    response.status(200)
+    // If user is found, create and return a token
+    const token = await this.userService.generateToken(email, 'user');
+    return {
+      message: 'User authenticated',
+      token: token,
+    };
   }
 
 }
